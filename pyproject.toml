@@ -1,0 +1,21 @@
+[project]
+name = "autoweb-module"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4>=4.14.2",
+    "download-module",
+    "selenium>=4.38.0",
+    "time-module",
+]
+
+[tool.uv.sources]
+time-module = { git = "https://github.com/yaiyaiyank/time-module" }
+download-module = { git = "https://github.com/yaiyaiyank/download-module" }
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.1.0",
+]
