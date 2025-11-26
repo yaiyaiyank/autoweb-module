@@ -66,31 +66,46 @@ class Element(time_module.MutableWaitTimeAttrClass):
         locator: Literal["id", "name", "tag", "xpath", "css", "link", "plink", "class"],
         attr: str,
         wait_time: int | float | None = None,
-    ):
+    ) -> Self:
         """seleniumのfind_elemnetメソッドのラッパー"""
         by = LOCATOR_DICT[locator]
 
-        elem = self._base_find_elem(locator, attr, wait_time)
+        elem = self._find_and_wait_elem(locator, attr, wait_time)
+        # wait_timeが0の場合
         if elem is None:
-            self.elem.find_element(by, attr)  # raise: NoSuchElementException
+            elem = self.elem.find_element(by, attr)  # raise: NoSuchElementException, StaleElementReferenceException
+        return self._get_new_element(elem=elem)
 
     def find_elems(
         self,
         locator: Literal["id", "name", "tag", "xpath", "css", "link", "plink", "class"],
         attr: str,
         wait_time: int | float | None = None,
-    ):
+    ) -> list[Self]:
         """seleniumのfind_elemnetsメソッドのラッパー"""
-        pass  # TODO
-
-    def _base_find_elem(self, locator: str, attr: str, wait_time: int | float | None) -> WebElement | None:
         by = LOCATOR_DICT[locator]
+        try:
+            self._find_and_wait_elem(locator, attr, wait_time)
+            # wait_timeが0の場合または待機して要素が1つ以上見つかった場合
+            elem_list = self.elem.find_elements(by, attr)
+        except TimeoutException:
+            # 待機して要素が見つからなかった場合
+            elem_list = []
+
+        return [self._get_new_element(elem=elem) for elem in elem_list]
+
+    def find_cond_elems(self, cond):
+        pass
+
+    def _find_and_wait_elem(self, by: str, attr: str, wait_time: int | float | None) -> WebElement | None:
         wait_time = self._get_temp_wait_time(wait_time)
         if wait_time == 0:
             elem = None
         else:
-            wait = WebDriverWait(self.driver, wait_time)
-            elem = wait.until(EC.visibility_of_element_located((by, attr)))  # raise: TimeoutException
+            wait = WebDriverWait(self.elem, wait_time)
+            elem = wait.until(
+                EC.presence_of_element_located((by, attr))
+            )  # raise: TimeoutException, StaleElementReferenceException
         return elem
 
     def to_driver_elem(self) -> Self:
@@ -98,10 +113,13 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     @property
     def parent(self) -> Self:
-        pass
+        return self.find_elem("xpath", "..", wait_time=0)
 
     @property
     def children(self) -> list[Self]:
+        return self.find_elems("xpath", "./*", wait_time=0)
+
+    def add_cond(self):
         pass
 
     # ---------------status系---------------
@@ -141,7 +159,6 @@ class Element(time_module.MutableWaitTimeAttrClass):
         # driverならここまで
         if self.is_web_driver:
             return status
-        self.elem
 
     @property
     def text(self):
