@@ -5,29 +5,7 @@ from typing import Self, Literal
 from abc import abstractmethod
 
 
-# class Cond:
-#     @abstractmethod
-#     def get_xpath_attr(self) -> str:
-#         pass
 
-#     def __mul__(self, other: Self) -> Self:
-#         return AND(self, other)
-
-#     def __add__(self, other: Self) -> Self:
-#         return OR(self, other)
-
-# class CondBool:
-#     pass
-
-# @dataclass
-# class AND(CondBool):
-#     cond1: Cond
-#     cond2: Cond
-
-# @dataclass
-# class OR(CondBool):
-#     cond1: Cond
-#     cond2: Cond
 
 
 @dataclass
@@ -119,14 +97,20 @@ class AllSelectorCond(Cond):
     and_selector_list: list[AndSelector] = field(default_factory=list)
 
     def append(self, and_selector: AndSelector):
-        pass
+        self.and_selector_list.append(and_selector)
+
+    def map_and_append(self):
+        self.and_selector_list = [and_selector.append() for and_selector in self.and_selector_list]
 
     def mul(self, cond: Cond):
         if isinstance(cond, AllSelectorCond):
-            # (A1 or A2 or .. or An) and (B1 or B2 or .. or Bn) ⇔ 全A, Bの組み合わせのor(書きたくない)
-            # 2x2の場合で(A or B) and (C or D) ⇔ (A and (C or D)) or (B and (C or D)) ⇔ (A and C) or (A and D) or (B and C) or (B and D)
+            # (A1 or A2 or .. or An) and (B1 or B2 or .. or Bn) ⇔ or(i:1→n)or(j:1→n)(Ai and Bj)
+            # TODO
             return
         # (A1 or A2 or .. or An) and B ⇔ (A1 and B) or (A2 and B) or .. or (An and B)
+        # TODO
+        
+
 
     def add(self, cond: Cond):
         if isinstance(cond, AllSelectorCond):
@@ -136,4 +120,4 @@ class AllSelectorCond(Cond):
         # (A1 or A2 or .. or An) or B ⇔ A1 or A2 or .. or An or B
         and_selector = AndSelector()
         and_selector.append(cond)
-        self.and_selector_list.append(and_selector)
+        self.append(and_selector)
