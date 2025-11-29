@@ -29,7 +29,7 @@ class Selenium:
         headless: str | None = None,
         wait_time: int | float | time_module.MutableWaitTime | None = None,
         is_raise_for_no_vpn: bool = False,
-    ) -> Element:
+    ):
         match browser_name:
             case "chrome":
                 options_composer = ChromeOptionsComposer()
@@ -39,13 +39,14 @@ class Selenium:
             case "tor":
                 raise NotImplementedError("まだtorブラウザ非対応です。")
         # seleniumライブラリのdriverを起動。これをラップする
-        self._driver: WebDriver = options_composer.main(default_save_folder, profile_path, headless)
+        self._driver: WebDriver = options_composer.main(
+            default_save_folder, profile_path=profile_path, headless=headless
+        )
         self._start(start_url)
         # 待機時間はデフォルト10秒
         if wait_time is None:
             wait_time = 10
         self.driver: Element = self.element_class(elem=self._driver, _wait_time=wait_time)
-        return self.driver
 
     def _start(self, start_url: str):
         self._driver.get(start_url)

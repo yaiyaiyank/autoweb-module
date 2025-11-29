@@ -13,7 +13,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 
 # 待機系
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
 # その他
@@ -23,15 +23,21 @@ from bs4 import BeautifulSoup
 
 # 自作ライブラリ
 import time_module
-from autoweb_module.selenium.const import LOCATOR_DICT, INPUTABLE_TAG_NAME_LIST, FRAME_TAG_NAME_LIST
+from autoweb_module.selenium.const import (
+    LOCATOR_DICT,
+    INPUTABLE_TAG_NAME_LIST,
+    FRAME_TAG_NAME_LIST,
+    SELECT_TAG_NAME_LIST,
+)
 from autoweb_module.exceptions import DifferenceTagError, NotWebElementError
+from autoweb_module.selenium.cond import Cond, TagCond, LocatorCond, TextCond, AllSelectorCond
 
 
 @dataclass
 class Element(time_module.MutableWaitTimeAttrClass):
     elem: WebDriver | WebElement
     _wait_time: int | float | time_module.MutableWaitTime
-    debug_mode: bool
+    debug_mode: bool = False
 
     def __post_init__(self):
         # WebDriverを取得
@@ -94,8 +100,49 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
         return [self._get_new_element(elem=elem) for elem in elem_list]
 
-    def find_cond_elems(self, cond):
-        pass
+    def find_cond_elem(self, cond: Cond, wait_time: int | float | None = None) -> Self:
+        return self.find_elem("xpath", cond.xpath, wait_time=wait_time)
+
+    def find_cond_elems(self, cond: Cond, wait_time: int | float | None = None) -> list[Self]:
+        return self.find_elems("xpath", cond.xpath, wait_time=wait_time)
+
+    def find_locator_elem(
+        self,
+        name: str,
+        value: str,
+        match: Literal["equals", "contains", "startswith", "endswith"] = "equals",
+        wait_time: int | float | None = None,
+    ) -> Self:
+        locator = LocatorCond(name, value, match)
+        return self.find_cond_elem(locator, wait_time=wait_time)
+
+    def find_locator_elems(
+        self,
+        name: str,
+        value: str,
+        match: Literal["equals", "contains", "startswith", "endswith"] = "equals",
+        wait_time: int | float | None = None,
+    ) -> list[Self]:
+        locator = LocatorCond(name, value, match)
+        return self.find_cond_elems(locator, wait_time=wait_time)
+
+    def find_text_elem(
+        self,
+        value: str,
+        match: Literal["equals", "contains", "startswith", "endswith"] = "equals",
+        wait_time: int | float | None = None,
+    ) -> Self:
+        text = TextCond(value, match)
+        return self.find_cond_elem(text, wait_time=wait_time)
+
+    def find_text_elems(
+        self,
+        value: str,
+        match: Literal["equals", "contains", "startswith", "endswith"] = "equals",
+        wait_time: int | float | None = None,
+    ) -> list[Self]:
+        text = TextCond(value, match)
+        return self.find_cond_elems(text, wait_time=wait_time)
 
     def _find_and_wait_elem(self, by: str, attr: str, wait_time: int | float | None) -> WebElement | None:
         wait_time = self._get_temp_wait_time(wait_time)
@@ -113,14 +160,13 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     @property
     def parent(self) -> Self:
+        """1つ親"""
         return self.find_elem("xpath", "..", wait_time=0)
 
     @property
     def children(self) -> list[Self]:
+        """1つ子すべて"""
         return self.find_elems("xpath", "./*", wait_time=0)
-
-    def add_cond(self):
-        pass
 
     # ---------------status系---------------
     @property
@@ -132,7 +178,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
         return isinstance(self.driver, WebElement)
 
     @property
-    def is_inputable(self) -> bool:
+    def is_input(self) -> bool:
         if self.is_web_driver:
             return False
         return self.tag_name in INPUTABLE_TAG_NAME_LIST
@@ -142,6 +188,12 @@ class Element(time_module.MutableWaitTimeAttrClass):
         if self.is_web_driver:
             return False
         return self.tag_name in FRAME_TAG_NAME_LIST
+
+    @property
+    def is_select(self) -> bool:
+        if self.is_web_driver:
+            return False
+        return self.tag_name in SELECT_TAG_NAME_LIST
 
     def __repr__(self) -> str:
         # VSCodeの表示で数秒以上かかるとエラーになるし、ブラウザ側に影響があるかもしれないので詳細表示しない
@@ -179,7 +231,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     @property
     def value(self):
-        if not self.is_inputable:
+        if not self.is_input:
             raise DifferenceTagError(
                 f"valueが取得できるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
@@ -219,7 +271,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
                 self.elem.click()
 
     def clear(self):
-        if not self.is_inputable:
+        if not self.is_input:
             raise DifferenceTagError(
                 f"clearできるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
@@ -233,12 +285,23 @@ class Element(time_module.MutableWaitTimeAttrClass):
             raise TimeoutException
 
     def send_keys(self, clear: bool = False):
-        if not self.is_inputable:
+        if not self.is_input:
             raise DifferenceTagError(
                 f"send_keysできるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
         if clear:
             self.clear()
+
+    def select(self, value_or_text_or_index: str | int, value_type: Literal["value", "text", "index"] = "value"):
+        if not self.is_select:
+            raise DifferenceTagError("selectはselectタグ時のみです。")
+        select = Select(self.elem)
+        if value_type == "value":
+            select.select_by_value(value_or_text_or_index.__str__())
+        if value_type == "text":
+            select.select_by_visible_text(value_or_text_or_index.__str__())
+        if value_type == "index":
+            select.select_by_index(int(value_or_text_or_index))
 
     def back(self):
         """ブラウザバック"""
@@ -278,21 +341,36 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     # ---------------その他---------------
     def save_ss(self, file_path: Path | str):
-        """マウスをその要素の上に移動（ホバー）"""
+        """スクショを保存"""
+        file_path = Path(file_path)
+        if file_path.suffix != ".png":
+            raise ValueError("スクショを保存できるファイルの拡張子は「.png」だけです。")
         self.driver.save_screenshot(file_path)
 
     def save_html(self, file_path: Path | str):
-        """マウスをその要素の上に移動（ホバー）"""
+        """そのelemのHTMLを保存"""
         file_path = Path(file_path)
         if file_path.suffix != ".html":
-            raise ValueError("HTMLを保存できるファイルの拡張子は「.html」だぇ")
+            raise ValueError("HTMLを保存できるファイルの拡張子は「.html」だけです。")
+
+        pretty = self.soup.prettify()
+        file_path.write_text(pretty, encoding="utf-8")
+
+    @property
+    def soup(self) -> BeautifulSoup:
+        """そのelemのHTMLのBeautifulSoupオブジェクト"""
+        html = self._get_html()
+
+        soup = BeautifulSoup(html, "html.parser")
+        return soup
+
+    def _get_html(self) -> str:
+        """elemに応じてhtmlを取得"""
         # WebDriverの場合はページ全体のHTML
         if self.is_web_driver:
             html = self.driver.page_source
         # WebElementの場合はそのElement以下のHTML
         else:
-            html = self.elem.get_attribute("outerHTML")
+            html = self.attr("outerHTML")
 
-        soup = BeautifulSoup(html, "html.parser")
-        pretty = soup.prettify()
-        file_path.write_text(pretty, encoding="utf-8")
+        return html

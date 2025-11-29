@@ -21,7 +21,7 @@ class OptionsComposer(ABC):
     prefs: dict = field(default_factory=dict)
 
     def main(self, download_folder: Path | None, **kwargs: dict) -> WebDriver:
-        self.set_common_setting(self)
+        self.set_common_setting()
         self.set_setting(download_folder, **kwargs)
         return self.get_driver()
 
@@ -53,7 +53,7 @@ class ChromeOptionsComposer(OptionsComposer):
     options: ChromeOptions = field(default_factory=ChromeOptions)
     service: ChromeService = field(default_factory=ChromeService)
 
-    def set_setting(self, download_folder: Path | None, profile_path: Path | None):
+    def set_setting(self, download_folder: Path | None, profile_path: Path | None, headless: bool):
         self.options.add_argument("--propagate-iph-for-testing")
         self.options.add_experimental_option(
             "excludeSwitches", ["enable-automation"]
@@ -86,7 +86,7 @@ class FirefoxOptionsComposer(OptionsComposer):
     options: FirefoxOptions = field(default_factory=FirefoxOptions)
     service: FirefoxService = field(default_factory=FirefoxService)
 
-    def set_setting(self):
+    def set_setting(self, download_folder: Path | None, profile_path: Path | None, headless: bool):
         pass  # 気が向いたらFirefox対応する
 
     def get_driver(self):
