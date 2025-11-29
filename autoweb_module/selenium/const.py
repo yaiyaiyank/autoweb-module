@@ -2,6 +2,7 @@ from selenium.webdriver.common.by import By
 
 INPUTABLE_TAG_NAME_LIST = ["input", "textarea"]
 FRAME_TAG_NAME_LIST = ["iframe"]
+SELECT_TAG_NAME_LIST = ["select"]
 LOCATOR_DICT = {
     "id": By.ID,
     "name": By.NAME,
