@@ -36,8 +36,9 @@ from autoweb_module.selenium.cond import Cond, TagCond, LocatorCond, TextCond, A
 @dataclass
 class Element(time_module.MutableWaitTimeAttrClass):
     elem: WebDriver | WebElement
+    debug_mode: bool
+    save_folder: Path | None
     _wait_time: int | float | time_module.MutableWaitTime
-    debug_mode: bool = False
 
     def __post_init__(self):
         # WebDriverを取得
@@ -52,16 +53,19 @@ class Element(time_module.MutableWaitTimeAttrClass):
     def _get_new_element(
         self,
         elem: WebDriver | WebElement | None = None,
-        wait_time: time_module.MutableWaitTime | None = None,
+        save_folder: Path | None = None,
         debug_mode: bool | None = None,
+        _wait_time: time_module.MutableWaitTime | None = None,
     ) -> Self:
         """ここで新規Elementを生成。wait_timeなどのイミュータブルはある"""
         if elem is None:
             elem = self.elem
-        if wait_time is None:
-            _wait_time = self._wait_time
         if debug_mode is None:
             debug_mode = self.debug_mode
+        if _wait_time is None:
+            _wait_time = self._wait_time
+        if save_folder is None:
+            save_folder = self.save_folder
 
         element = self.__class__(elem=elem, _wait_time=_wait_time, debug_mode=debug_mode)
         return element
@@ -171,11 +175,11 @@ class Element(time_module.MutableWaitTimeAttrClass):
     # ---------------status系---------------
     @property
     def is_web_driver(self) -> bool:
-        return isinstance(self.driver, WebDriver)
+        return isinstance(self.elem, WebDriver)
 
     @property
     def is_web_element(self) -> bool:
-        return isinstance(self.driver, WebElement)
+        return isinstance(self.elem, WebElement)
 
     @property
     def is_input(self) -> bool:
@@ -276,7 +280,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
                 f"clearできるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
         # elem.clear()が聞かない時があるのでこっち
-        for _ in time_module.WaitTry(self.wait_time):
+        for _ in self.wait_try():
             self.elem.send_keys(Keys.CONTROL + "a")
             self.elem.send_keys(Keys.BACK_SPACE)
             if self.value == "":
@@ -284,13 +288,14 @@ class Element(time_module.MutableWaitTimeAttrClass):
         else:
             raise TimeoutException
 
-    def send_keys(self, clear: bool = False):
+    def send_keys(self, text: str, clear: bool = False):
         if not self.is_input:
             raise DifferenceTagError(
                 f"send_keysできるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
         if clear:
             self.clear()
+        self.elem.send_keys(text)
 
     def select(self, value_or_text_or_index: str | int, value_type: Literal["value", "text", "index"] = "value"):
         if not self.is_select:
@@ -374,3 +379,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
             html = self.attr("outerHTML")
 
         return html
+
+    def wait_try(self, wait_time: int | float | None = None):
+        wait_time = self._get_temp_wait_time(wait_time)
+        return time_module.WaitTry(wait_time)

@@ -25,6 +25,7 @@ class Selenium:
         start_url: str,
         browser_name: Literal["chrome", "firefox", "tor"] = "chrome",
         default_save_folder: Path | str | None = None,
+        debug_mode: bool = False,
         profile_path: Path | str | None = None,
         headless: str | None = None,
         wait_time: int | float | time_module.MutableWaitTime | None = None,
@@ -38,6 +39,8 @@ class Selenium:
                 options_composer = FirefoxOptionsComposer()
             case "tor":
                 raise NotImplementedError("まだtorブラウザ非対応です。")
+        if default_save_folder is None:
+            default_save_folder = Path(default_save_folder)
         # seleniumライブラリのdriverを起動。これをラップする
         self._driver: WebDriver = options_composer.main(
             default_save_folder, profile_path=profile_path, headless=headless
@@ -46,7 +49,9 @@ class Selenium:
         # 待機時間はデフォルト10秒
         if wait_time is None:
             wait_time = 10
-        self.driver: Element = self.element_class(elem=self._driver, _wait_time=wait_time)
+        self.driver: Element = self.element_class(
+            elem=self._driver, save_folder=default_save_folder, debug_mode=debug_mode, _wait_time=wait_time
+        )
 
     def _start(self, start_url: str):
         self._driver.get(start_url)
