@@ -2,6 +2,8 @@
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Self, Literal
+from datetime import datetime
+import base64
 
 # 外部ライブラリ
 # element系
@@ -23,6 +25,7 @@ from bs4 import BeautifulSoup
 
 # 自作ライブラリ
 import time_module
+import download_module
 from autoweb_module.selenium.const import (
     LOCATOR_DICT,
     INPUTABLE_TAG_NAME_LIST,
@@ -80,7 +83,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
         """seleniumのfind_elemnetメソッドのラッパー"""
         by = LOCATOR_DICT[locator]
 
-        elem = self._find_and_wait_elem(locator, attr, wait_time)
+        elem = self._find_and_wait_elem(by, attr, wait_time)
         # wait_timeが0の場合
         if elem is None:
             elem = self.elem.find_element(by, attr)  # raise: NoSuchElementException, StaleElementReferenceException
@@ -95,7 +98,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
         """seleniumのfind_elemnetsメソッドのラッパー"""
         by = LOCATOR_DICT[locator]
         try:
-            self._find_and_wait_elem(locator, attr, wait_time)
+            self._find_and_wait_elem(by, attr, wait_time)
             # wait_timeが0の場合または待機して要素が1つ以上見つかった場合
             elem_list = self.elem.find_elements(by, attr)
         except TimeoutException:
@@ -215,6 +218,8 @@ class Element(time_module.MutableWaitTimeAttrClass):
         # driverならここまで
         if self.is_web_driver:
             return status
+        # TODO
+        return status
 
     @property
     def text(self):
@@ -263,8 +268,21 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     # ---------------操作系---------------
 
-    def click(self, mode: Literal["javascript", "normal"] = "javascript"):
+    def click(
+        self,
+        is_download: bool = False,
+        download_wait_time: int | float | None = None,
+        mode: Literal["javascript", "normal"] = "javascript",
+    ) -> Path | None:
         """クリックする。"""
+        if is_download:
+            if self.save_folder is None:
+                save_folder = Path.home() / "Downloads"
+            else:
+                save_folder = self.save_folder
+            find_diff_path = download_module.FindDiffPath(save_folder)
+
+        # クリックする
         match mode:
             case "javascript":
                 # 基本これでいい。画面外でもクリックしてくれる。
@@ -274,12 +292,16 @@ class Element(time_module.MutableWaitTimeAttrClass):
                 # selectタグ以外の要素で必要な時が来るかもしれない
                 self.elem.click()
 
+        if is_download:
+            download_wait_time = self._get_temp_wait_time(download_wait_time)
+            return find_diff_path.fetch(download_wait_time)
+
     def clear(self):
         if not self.is_input:
             raise DifferenceTagError(
                 f"clearできるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
-        # elem.clear()が聞かない時があるのでこっち
+        # elem.clear()が効かない時があるのでこっち
         for _ in self.wait_try():
             self.elem.send_keys(Keys.CONTROL + "a")
             self.elem.send_keys(Keys.BACK_SPACE)
@@ -344,13 +366,43 @@ class Element(time_module.MutableWaitTimeAttrClass):
         actions = ActionChains(self.driver)
         actions.move_to_element(self.elem).perform()
 
+    def execute(self, script: str, *args):
+        self.driver.execute_script(script, *args)
+
     # ---------------その他---------------
-    def save_ss(self, file_path: Path | str):
+    def save_ss(self, file_path: Path | str | None = None, save_type: Literal["png", "pdf"] = "png"):
         """スクショを保存"""
-        file_path = Path(file_path)
-        if file_path.suffix != ".png":
-            raise ValueError("スクショを保存できるファイルの拡張子は「.png」だけです。")
-        self.driver.save_screenshot(file_path)
+        if save_type not in ("png", "pdf"):
+            raise ValueError("save_typeは'png'または'pdf'のみ指定できます。")
+
+        if self.save_folder is not None:
+            default_folder = Path(self.save_folder)
+        else:
+            default_folder = Path.home() / "Downloads"
+
+        if file_path is None:
+            if save_type == "pdf":
+                file_path = default_folder / "page.pdf"
+            else:
+                today = datetime.now().strftime("%Y%m%d")
+                file_path = default_folder / f"{today}.png"
+
+        path = Path(file_path)
+        if save_type == "png" and path.suffix.lower() != ".png":
+            path = path.with_suffix(".png")
+        if save_type == "pdf" and path.suffix.lower() != ".pdf":
+            path = path.with_suffix(".pdf")
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        if save_type == "png":
+            if self.is_web_driver:
+                self.driver.save_screenshot(path.__str__())
+            else:
+                self.elem.screenshot(path.__str__())
+        else:
+            pdf_base64 = self.driver.print_page()
+            path.write_bytes(base64.b64decode(pdf_base64))
 
     def save_html(self, file_path: Path | str):
         """そのelemのHTMLを保存"""
