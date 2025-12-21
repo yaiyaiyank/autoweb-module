@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Self, Literal
 from abc import abstractmethod, ABC
+import copy
 
 
 @dataclass
@@ -12,6 +13,10 @@ class Cond(ABC):
     def __mul__(self, other: Cond) -> AllSelectorCond:
         if not isinstance(other, Cond):
             TypeError("演算子 '*' はCond同士のみ可能です。")
+        print(id(self))
+        self = self.copy()
+        print(id(self))
+        other = other.copy()
         # AllSelector * Cond(AllSelector含む)
         if isinstance(self, AllSelectorCond):
             self.mul(other)
@@ -31,6 +36,10 @@ class Cond(ABC):
     def __add__(self, other: Cond) -> AllSelectorCond:
         if not isinstance(other, Cond):
             TypeError("演算子 '+' はCond同士のみ可能です。")
+        print(id(self))
+        self = self.copy()
+        print(id(self))
+        other = other.copy()
         # AllSelector + Cond(AllSelector含む)
         if isinstance(self, AllSelectorCond):
             self.add(other)
@@ -62,6 +71,14 @@ class Cond(ABC):
         xpath_maker = XpathMaker()
         xpath = xpath_maker.get_xpath(all_selector.and_selector_list)
         return xpath
+
+    def copy(self) -> Cond:
+        """
+        自身のインスタンスをコピーする
+        これを介せずにcond1 + cond2とかをすると、cond1やcond2が別の値になってしまう
+        """
+        cond = copy.deepcopy(self)
+        return cond
 
 
 @dataclass
@@ -108,7 +125,7 @@ class AndSelector:
     locators: list[LocatorCond] = field(default_factory=list)
     texts: list[TextCond] = field(default_factory=list)
 
-    def append(self, cond: Cond):
+    def append(self, cond: TagCond | LocatorCond | TextCond):
         if isinstance(cond, TagCond):
             if cond is None:
                 return
@@ -130,12 +147,11 @@ class AllSelectorCond(Cond):
     def append(self, and_selector: AndSelector):
         self.and_selector_list.append(and_selector)
 
-    def get_map_and_append(self, cond: Cond) -> list[AndSelector]:
+    def get_map_and_append(self, cond: TagCond | LocatorCond | TextCond) -> list[AndSelector]:
         base_and_selector_list = []
         for and_selector in self.and_selector_list:
             and_selector.append(cond)
             base_and_selector_list.append(and_selector)
-        # and_selector_list = [and_selector.append(cond) for and_selector in self.and_selector_list]
         return base_and_selector_list
 
     def mul(self, cond: Cond):

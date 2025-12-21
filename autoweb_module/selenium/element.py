@@ -270,9 +270,9 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     def click(
         self,
+        mode: Literal["javascript", "normal"] = "javascript",
         is_download: bool = False,
         download_wait_time: int | float | None = None,
-        mode: Literal["javascript", "normal"] = "javascript",
     ) -> Path | None:
         """クリックする。"""
         if is_download:
