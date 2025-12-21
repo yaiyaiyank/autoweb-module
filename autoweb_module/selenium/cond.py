@@ -13,9 +13,7 @@ class Cond(ABC):
     def __mul__(self, other: Cond) -> AllSelectorCond:
         if not isinstance(other, Cond):
             TypeError("演算子 '*' はCond同士のみ可能です。")
-        print(id(self))
         self = self.copy()
-        print(id(self))
         other = other.copy()
         # AllSelector * Cond(AllSelector含む)
         if isinstance(self, AllSelectorCond):
@@ -36,9 +34,7 @@ class Cond(ABC):
     def __add__(self, other: Cond) -> AllSelectorCond:
         if not isinstance(other, Cond):
             TypeError("演算子 '+' はCond同士のみ可能です。")
-        print(id(self))
         self = self.copy()
-        print(id(self))
         other = other.copy()
         # AllSelector + Cond(AllSelector含む)
         if isinstance(self, AllSelectorCond):
