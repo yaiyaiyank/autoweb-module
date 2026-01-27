@@ -222,15 +222,15 @@ class Element(time_module.MutableWaitTimeAttrClass):
         return status
 
     @property
-    def text(self):
+    def text(self) -> str:
         return self.elem.text
 
     @property
-    def tag_name(self):
+    def tag_name(self) -> str:
         return self.elem.tag_name
 
     @property
-    def current_url(self):
+    def current_url(self) -> str:
         return self.driver.current_url
 
     def attr(self, name) -> str | None:
@@ -239,7 +239,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
         return self.elem.get_attribute(name)
 
     @property
-    def value(self):
+    def value(self) -> str:
         if not self.is_input:
             raise DifferenceTagError(
                 f"valueが取得できるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"

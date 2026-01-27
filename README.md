@@ -43,9 +43,9 @@ userid_elem.parent.find_elem("tag", "input").send_keys("うおｗ")
 例: 画像リンク取得
 ```python
 # 検索条件: タグ名がa かつ href属性の末尾が".png"
-link_elems = driver.find_cond_elems(TagCond("a") * LocatorCond("href", ".png", "endswith"))
+link_elems = driver.find_cond_elems(TagCond("a") & LocatorCond("href", ".png", "endswith"))
 # ちなみに、この条件のxpathは以下のようにして取れる。find_cond_elemやfind_cond_elemsではこのxpathを用いて検索している
-# cond = TagCond("a") * LocatorCond("href", ".png", "endswith")
+# cond = TagCond("a") & LocatorCond("href", ".png", "endswith")
 # print(cond.xpath) -> ".//a[substring(@href, string-length(@href) - 5) = '.png']"
 # id属性が"userid"のElement
 link_list = [link_elem.attr("href") for link_elem in link_elems]

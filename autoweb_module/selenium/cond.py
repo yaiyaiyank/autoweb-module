@@ -10,9 +10,9 @@ import copy
 class Cond(ABC):
     pass
 
-    def __mul__(self, other: Cond) -> AllSelectorCond:
+    def __and__(self, other: Cond) -> AllSelectorCond:
         if not isinstance(other, Cond):
-            TypeError("演算子 '*' はCond同士のみ可能です。")
+            TypeError("演算子 '&' はCond同士のみ可能です。")
         self = self.copy()
         other = other.copy()
         # AllSelector * Cond(AllSelector含む)
@@ -31,9 +31,9 @@ class Cond(ABC):
         all_selector.append(and_selector)
         return all_selector
 
-    def __add__(self, other: Cond) -> AllSelectorCond:
+    def __or__(self, other: Cond) -> AllSelectorCond:
         if not isinstance(other, Cond):
-            TypeError("演算子 '+' はCond同士のみ可能です。")
+            TypeError("演算子 '|' はCond同士のみ可能です。")
         self = self.copy()
         other = other.copy()
         # AllSelector + Cond(AllSelector含む)
