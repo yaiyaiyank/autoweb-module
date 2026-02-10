@@ -53,6 +53,19 @@ class Element(time_module.MutableWaitTimeAttrClass):
             self.driver = self.elem.parent
         self.wait_time = self._wait_time
 
+    def __eq__(self, other: Self) -> bool:
+        # そもそもElementじゃない場合
+        if not isinstance(other, Element):
+            return False
+        # WebDriver同士なら
+        if self.is_web_driver and other.is_web_driver:
+            return True
+        # WebElement同士ならそのeq
+        if self.is_web_element and other.is_web_element:
+            return self.elem == other.elem
+        # WebDriver, WebElementの組み合わせ
+        return False
+
     def _get_new_element(
         self,
         elem: WebDriver | WebElement | None = None,
@@ -216,17 +229,28 @@ class Element(time_module.MutableWaitTimeAttrClass):
         status = ""
         status += f"type: {self.elem.__class__.__name__}"
         # driverならここまで
-        if self.is_web_driver:
+        if self.is_web_driver or not detail:
             return status
-        # TODO
+
+        status += f"\nタグ名: {self.tag_name}"
+        status += f"\nclass属性名: {self.attr('class')}"
+        if self.is_input:
+            status += f"\n値: {self.value}"
+
+        status += f"\nテキスト↓\n{self.text}"
+
         return status
 
     @property
     def text(self) -> str:
+        if self.is_web_driver:
+            raise NotWebElementError("テキスト取得はWebElementのみです。")
         return self.elem.text
 
     @property
     def tag_name(self) -> str:
+        if self.is_web_driver:
+            raise NotWebElementError("タグ名取得はWebElementのみです。")
         return self.elem.tag_name
 
     @property
@@ -261,7 +285,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
 
     def wait_not_exists(self, wait_time: int | float | None = None):
         if self.is_web_driver:
-            raise NotWebElementError("WebDriverは待つとかの次元じゃないです。")
+            raise NotWebElementError("WebDriverは不滅です。")
         wait_time = self._get_temp_wait_time(wait_time)
         # なんでseleniumは存在判定機能がないのに存在しなくなるまで待つ機能はあるねん
         WebDriverWait(self.driver, wait_time).until(EC.staleness_of(self.elem))
@@ -362,7 +386,7 @@ class Element(time_module.MutableWaitTimeAttrClass):
     def perform(self):
         """マウスをその要素の上に移動（ホバー）"""
         if self.is_web_driver:
-            raise NotWebElementError
+            raise NotWebElementError("ホバーはWebElementのみです。")
         actions = ActionChains(self.driver)
         actions.move_to_element(self.elem).perform()
 
