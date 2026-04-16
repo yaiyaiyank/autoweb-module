@@ -215,6 +215,15 @@ class Element(time_module.MutableWaitTimeAttrClass):
             return False
         return self.tag_name in SELECT_TAG_NAME_LIST
 
+    @property
+    def is_display_none(self) -> bool:
+        if self.is_web_driver:
+            return False
+        style = self.attr("style")
+        if style is None:
+            return False
+        return "display: none;" in style or "display: none;" in style
+
     def __repr__(self) -> str:
         # VSCodeの表示で数秒以上かかるとエラーになるし、ブラウザ側に影響があるかもしれないので詳細表示しない
         return self._status(detail=False)
@@ -248,6 +257,12 @@ class Element(time_module.MutableWaitTimeAttrClass):
         return self.elem.text
 
     @property
+    def text_content(self) -> str:
+        if self.is_web_driver:
+            raise NotWebElementError("テキストコンテンツ取得はWebElementのみです。")
+        return self.prop("textContent")
+
+    @property
     def tag_name(self) -> str:
         if self.is_web_driver:
             raise NotWebElementError("タグ名取得はWebElementのみです。")
@@ -257,10 +272,20 @@ class Element(time_module.MutableWaitTimeAttrClass):
     def current_url(self) -> str:
         return self.driver.current_url
 
-    def attr(self, name) -> str | None:
+    def attr(self, name: str) -> str | None:
         if self.is_web_driver:
             return None
         return self.elem.get_attribute(name)
+
+    def prop(self, name: str) -> str | None:
+        if self.is_web_driver:
+            return None
+        return self.elem.get_property(name)
+
+    def dom_attr(self, name: str) -> str | None:
+        if self.is_web_driver:
+            return None
+        return self.elem.get_dom_attribute(name)
 
     @property
     def value(self) -> str:
@@ -334,14 +359,18 @@ class Element(time_module.MutableWaitTimeAttrClass):
         else:
             raise TimeoutException
 
-    def send_keys(self, text: str, clear: bool = False):
+    def send_keys(self, text: str, clear: bool = False, fix: bool = False):
         if not self.is_input:
             raise DifferenceTagError(
                 f"send_keysできるWebElementのタグは{' or '.join(INPUTABLE_TAG_NAME_LIST)}です。{self.elem.tag_name}は非対応です。"
             )
         if clear:
             self.clear()
+
         self.elem.send_keys(text)
+
+        if fix:
+            self.send_keys(text, clear=True, fix=False)
 
     def select(self, value_or_text_or_index: str | int, value_type: Literal["value", "text", "index"] = "value"):
         if not self.is_select:
