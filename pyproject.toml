@@ -1,6 +1,6 @@
 [project]
 name = "autoweb-module"
-version = "1.0.2"
+version = "1.0.3"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -10,6 +10,9 @@ dependencies = [
     "selenium>=4.38.0",
     "time-module",
 ]
+
+[tool.setuptools.packages.find]
+include = ["autoweb_module", "autoweb_module.*"]
 
 [tool.uv.sources]
 time-module = { git = "https://github.com/yaiyaiyank/time-module" }
